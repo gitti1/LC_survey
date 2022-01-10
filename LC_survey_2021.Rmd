@@ -1,0 +1,347 @@
+---
+title: "Library Carpentry Survey 2021"
+#output: html_document
+always_allow_html: true
+# check which of the below creates HTML output before switching output format
+#  word_document: default 
+#  pdf_document: default
+date: "`r format(Sys.time(), '%d %B %Y')`"
+author: Birgit Schmidt
+output:
+  # word_document
+  html_document:
+    code_download: true # adds download button
+    df_print: paged
+    fig_width: 7 
+    fig_height: 4
+  keep_md: yes
+  toc: yes
+  toc_depth: 2
+  toc_float: yes
+  code_folding: hide
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning=FALSE)
+```
+
+---
+
+```{r load libraries and data}
+library(tidyverse)
+library(janitor) # clean variables
+library(hrbrthemes) # plotting themes
+library(lubridate) # transform dates
+library(UpSetR) # create upset diagrams
+library(xtable)
+library(likert) # evaluate Likert type questions
+
+lc_survey_raw <- read_csv("data_raw/lc-cac-survey-responses.csv")
+lc_survey_raw <- lc_survey_raw %>% clean_names()
+
+# leave out the test answers, officially open from 14 June 2021
+# 6 responses removed
+lc_survey <- lc_survey_raw %>% filter(submit_date_utc >= "2021-06-14")
+
+# remove empty variables
+lc_survey <- lc_survey %>% select(-other_3)
+
+# rename variable names
+lc_survey <- lc_survey %>% rename(
+  respondent_role = in_which_role_are_you_responding_to_this_survey, last_workshop_attended = when_did_you_last_attend_a_carpentries_workshop,
+  application_frequency = how_often_do_you_now_apply_the_skills_and_techniques_which_you_have_gained)
+names(lc_survey) <- str_remove(names(lc_survey), "in_this_series_of_8_questions_you_will_be_asked_to_rate_which_of_the_following_behaviours_routines_you_have_adopted_as_a_result_of_completing_a_carpentries_workshop_please_select_the_option_most_consistent_with_your_practices_")
+names(lc_survey) <- str_remove(names(lc_survey), "what_is_the_")
+names(lc_survey) <- str_remove(names(lc_survey), "_full_time_equivalent")
+
+# non-trivial responses - results in the same number of observations
+lc_survey_non_trivial <- lc_survey %>% filter_at(vars(respondent_role:is_there_anything_else_you_would_like_to_share), any_vars(!is.na(.)))
+# complete responses - would need to reshape into long form first 
+
+# dates
+lc_survey <- lc_survey %>% mutate(submit_date_utc = as_date(submit_date_utc))
+
+# save processed survey data 
+#write_csv(lc_survey, "data/lcag_survey_2021.csv")
+
+tab_respondent_role <- lc_survey %>% count(respondent_role)
+
+```
+# Survey results
+The Library Carpentry Advisory Group (LCAG, https://librarycarpentry.org/advisory/) conducted a survey with the aim to gain a better understanding of librarians and other information professionals in terms of their training needs, impacts resulting from training and further engagement with The Carpentries community. The survey has been developed by Konrad Förstner and Birgit Schmidt.
+
+The survey was disseminated through various channels, including The Carpentries mailing lists and social media channels, regional mailing lists (e.g. Australia, Asia, Africa), and direct contacts to former workshop participants and instructors (via host institutions). 
+
+The survey consisted of 28 questions overall, and was open for responses between `r min(ymd(lc_survey$submit_date_utc))` and `r max(ymd(lc_survey$submit_date_utc))`. 
+Overall `r nrow(lc_survey)` responses were collected; all respondents shared some information about their experiences with The Carpentries. About two thirds contributed as an individual (`r tab_respondent_role$n[2]` responses), `r tab_respondent_role$n[1]` as a representative of a member institution and further `r tab_respondent_role$n[3]` respondents did not specify a role. 
+
+```{r engagement} 
+
+# Carpentries community engagement, gather variables 
+lc_survey_eng <- lc_survey %>% pivot_longer(cols = c(we_organise_and_host_carpentries_workshops:we_are_not_involved_as_a_library_but_i_am_personally, -we_are_not_involved_yet_but_would_like_to_learn_more), names_to = "engagement_var", values_to = "engagement") %>% filter(!is.na(engagement))
+
+lc_survey_eng_tab <- lc_survey_eng %>% count(engagement) %>% arrange(desc(n))
+n_engagement <- length(unique(lc_survey_eng$number))
+
+## Define lollipop plot function
+lollipop_plot <- function(data, var, title, m, subtitle){
+  plot <- ggplot(data, aes(x = reorder({{var}}, n), y = n)) +
+  geom_segment(aes(xend = {{var}}, y = 0, yend = n), color="grey") +
+  geom_point(color = "orange", size = 4) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  ) + ggtitle(title, subtitle = paste(m, subtitle)) + xlab("")
+  return(plot)
+}
+
+lollipop_plot(lc_survey_eng_tab, engagement, title = "Library engagement with the Carpentries", n_engagement, subtitle = "responses")
+
+lc_survey$other_10[!is.na(lc_survey$other_10)]
+ 
+n_not_yet_learn <- length(lc_survey$we_are_not_involved_yet_but_would_like_to_learn_more)
+
+```
+
+Overall, `r n_engagement` respondents reported that their library already engages with The Carpentries, and several do so in multiple ways. In addition, `r n_not_yet_learn` respondent libraries are not involved yet but they would like to learn more. 
+
+Regarding their job roles, respondents were asked to choose up to three work areas. 
+
+```{r job roles, fig.height = 4, fig.width = 7} 
+# Job roles
+lc_survey_job_roles <- lc_survey %>% pivot_longer(teaching_and_learning:other_21, names_to = "job_var", values_to = "job_roles") %>% filter(!is.na(job_roles)) 
+
+lc_survey_job_roles_tab <- lc_survey_job_roles %>% count(job_roles) %>% arrange(desc(n))
+n_job_roles <- length(unique(lc_survey_job_roles$number))
+
+lollipop_plot(lc_survey_job_roles_tab, job_roles, title = "Job roles", m = n_job_roles, subtitle = "responses")
+
+```
+
+```{r workshop attendance and content} 
+# Former workshop attendance
+lc_survey_workshop_att <- lc_survey %>% pivot_longer(library_carpentry:other_27, names_to = "workshop_attendance_var", values_to = "workshop_attendance") %>% filter(!is.na(workshop_attendance)) 
+
+lc_survey_workshop_att_tab <- lc_survey_workshop_att %>% count(workshop_attendance) %>% arrange(desc(n))
+lc_survey_workshop_att_tab
+sub_any_workshop <- lc_survey_workshop_att %>% filter(workshop_attendance %in% c("Library Carpentry", "Software Carpentry", "Data Carpentry"))
+n_workshop_att <- length(unique(sub_any_workshop$number))
+
+x_att <- lc_survey %>% select(number, library_carpentry:no_but_i_plan_to_do_so) %>% filter_at(vars(library_carpentry:no_but_i_plan_to_do_so), any_vars(!is.na(.)))
+                                                                                        
+# turn into incidence matrix, fill zeros for NAs
+x_att_inc <- x_att %>% mutate(across(library_carpentry:no_but_i_plan_to_do_so,  ~ifelse(is.na(.), as.integer(0), as.integer(1)))) %>% select(library_carpentry:no_but_i_plan_to_do_so)
+
+metadata <- data.frame(sets = names(x_att_inc[1:4]), variable = c("grp1", "grp2", "grp3", "grp4"))
+  
+#upset(as_data_frame(x_att_inc), sets = c("library_carpentry", "data_carpentry", "software_carpentry", "no_but_i_plan_to_do_so"), mb.ratio = c(0.55, 0.45), order.by = "freq")
+#upset(as_data_frame(x_att_inc), set.metadata = list(data = metadata, plots = list(list(type = "matrix_rows", column = "variable"))), order.by = "freq")
+
+df <- data.frame("Library Carpentry" = x_att_inc$library_carpentry, "Data Carpentry" = x_att_inc$data_carpentry, "Software Carpentry" = x_att_inc$software_carpentry, "No but plan to do so" = x_att_inc$no_but_i_plan_to_do_so)
+metadata <- data.frame(sets = names(df), variable = c("grp1", "grp1", "grp1", "grp2"))
+
+upset(df, set.metadata = list(data = metadata, plots = list(list(type = "matrix_rows", column = "variable"))), order.by = "freq")
+
+# Q5 When did you last attend a Carpentries Workshop?
+# [27] "last_workshop_attended" 
+lc_survey %>% filter(!(last_workshop_attended %in% c(NA, "Have not attended a Carpentries Workshop"))) %>% count(last_workshop_attended) %>% arrange(desc(n))
+
+# Q6 What content was covered? (select all that apply)
+# [28] "git"                                                                          
+# [29] "introduction_to_data_for_archivists"                                            
+# [30] "open_refine"                                                                    
+# [31] "python"                                                                         
+# [32] "r"                                                                              
+# [33] "regular_expressions"                                                            
+# [34] "spreadsheets_tidy_data"                                                         
+# [35] "sql"                                                                            
+# [36] "unix_shell"                                                                     
+# [37] "web_scraping"                                                                   
+# [38] "i_do_not_remember"                                                              
+# [39] "other_40"
+
+lc_survey_workshop_content <- lc_survey %>% pivot_longer(git:other_40, names_to = "workshop_content_var", values_to = "workshop_content") %>% filter(!(workshop_content %in% c(NA, "I have not attended", "Did not attend one.", "I do not remember")))
+
+lc_survey_workshop_content_tab <- lc_survey_workshop_content %>% count(workshop_content) %>% arrange(desc(n))
+n_workshop_content <- length(unique(lc_survey_workshop_content$number))
+
+lollipop_plot(lc_survey_workshop_content_tab, workshop_content, title = "Workshop content", m = n_workshop_content, subtitle = "responses")
+
+```
+
+Of all respondents, `r n_workshop_att` had attended at least one Carpentries workhop. Out of these about every second (45 respondents) had attended at least two types of Carpentries workshops. A good third (31 respondents) had participated in Library Carpentry workshops only so far.  
+
+# Application and engagement
+
+```{r applications, fig.height = 3, fig.width = 6}
+# Q7 In which areas have you applied the skills which you gained through the workshop?
+# Application areas, of skills learned via the Carpentries
+lc_survey_appl_area <- lc_survey %>% pivot_longer(in_a_new_work_area_or_project:other_44, names_to = "application_area_var", values_to = "application_area") %>% filter(!is.na(application_area))
+
+lc_survey_appl_area_notNA <- lc_survey_appl_area %>% filter(!(application_area %in% c(NA, "None", "none")))
+n_appl_areas <- length(unique(lc_survey_appl_area_notNA$number))
+lc_survey_appl_area_tab <- lc_survey_appl_area %>% filter(!(application_area %in% c("None", "none"))) %>% count(application_area) %>% arrange(desc(n))
+
+lollipop_plot(lc_survey_appl_area_tab, application_area, title = "Application areas", m = n_appl_areas, subtitle = "responses")
+
+# [44] "application_frequency"  
+# Q8 How often do you now apply the skills and techniques which you have gained?
+# Frequency of application of skills, turn into factor variable
+lc_survey <- lc_survey %>% mutate(application_frequency = factor(application_frequency, levels = c("Daily", "Weekly", "Monthly", "Several times per year", "Less than once a year"))) 
+
+lc_survey %>% filter(!is.na(application_frequency)) %>% count(application_frequency) %>% arrange(desc(n))
+
+```
+
+### Adopted routines
+
+Respondents were asked to assess to what degree they have adopted certain behaviours or routines as a result of having completed a Carpentries workshop. The scale of responses was a 7-point Likert scale between never (0), sometimes (3, mid-point) and regularly (6), not all levels were spelled out in the survey questionnaire. The additional levels can be read as very rarely (1), rarely (2), often (4), very often (5). 
+
+```{r routines, fig.height = 4, fig.width = 9}
+
+# Q9 In this series of 8 questions, you will be asked to rate which of the following behaviours/routines you have adopted as a result of completing a Carpentries workshop. Please select the option most consistent with your practices.
+# Likert type question
+# 0 Never, 3 Sometimes, 6 Regularly 
+# 1 Very rarely, 2 Rarely
+# 4 Often, 5 Very often
+# 5-point Likert scale (never, rarely, sometimes, often, always)
+
+# [45] "reorganising_and_cleaning_spreadsheets"                                         
+# [46] "using_version_control"                                                          
+# [47] "transforming_workflows_into_scripts"                                            
+# [48] "scraping_or_mining_web_content"                                                 
+# [49] "improving_data_management_and_project_organisation"                             
+# [50] "using_programming_languages_r_python"                                            
+# [51] "reusing_code"                                                                   
+# [52] "creating_processable_reports_e_g_r_markdown_jupyter_notebook" 
+
+# turn variables into factors
+#lc_survey <- lc_survey  %>% #mutate(across(reorganising_and_cleaning_spreadsheets:creating_processable_reports_e_g_r_markdown_jupyter_notebook, ~ factor(.x, levels = c("never", "very rarely", "rarely", "sometimes", "often", "very often", "regularly"))))
+lc_survey_routines <- lc_survey %>% select(number, reorganising_and_cleaning_spreadsheets:creating_processable_reports_e_g_r_markdown_jupyter_notebook) %>% mutate(across(reorganising_and_cleaning_spreadsheets:creating_processable_reports_e_g_r_markdown_jupyter_notebook, ~ factor(.x))) 
+lc_survey_routines$scraping_or_mining_web_content <- factor(lc_survey_routines$scraping_or_mining_web_content, levels = levels(lc_survey_routines$reorganising_and_cleaning_spreadsheets))
+
+routines_all_NA <- lc_survey_routines %>% filter_at(vars(reorganising_and_cleaning_spreadsheets:creating_processable_reports_e_g_r_markdown_jupyter_notebook), all_vars(is.na(.)))
+
+lc_survey_routines <- lc_survey_routines %>% filter(!(number %in% routines_all_NA$number))
+
+# error: all items/columns must have the same number of levels
+routines <- likert(as.data.frame(lc_survey_routines[2:9]))
+routines 
+summary(routines)
+plot(routines)
+
+# Other adopted routines 
+# Q17 What other behaviours/routines have you adopted as a result of completing a Carpentries workshop?
+lc_survey %>% filter(!(what_other_behaviours_routines_have_you_adopted_as_a_result_of_completing_a_carpentries_workshop %in% c(NA, "I have never attended a workshop on carpentry", "NA - flaw in your survey i haven't attended any so these questions are irrelevant.", "not applicable", "None", "none", "Not applicable"))) %>% select(what_other_behaviours_routines_have_you_adopted_as_a_result_of_completing_a_carpentries_workshop) %>% head(n = 45)
+
+```
+
+### Benefits, follow-up learning and further engagement
+```{r application and engagement, fig.height = 4, fig.width = 9}
+# Q18 In which other ways do you benefit from what you have learned?
+# [54] "stronger_confidence_in_learning_new_technical_skills"                            
+# [55] "encouraging_skills_development_of_staff"                                         
+# [56] "decision_making_on_technical_solutions_in_libraries"                            
+# [57] "recruitment_of_technical_and_or_analytical_staff"                               
+# [58] "improved_relationships_with_academic_or_technical_partners"                     
+# [59] "rethinking_current_approaches_for_data_processing_and_management_in_my_unit_department" 
+# [60] "other_61"
+
+lc_survey_benefits <- lc_survey %>% pivot_longer(stronger_confidence_in_learning_new_technical_skills:rethinking_current_approaches_for_data_processing_and_management_in_my_unit_department, names_to = "benefits_var", values_to = "benefits") %>% filter(!is.na(benefits)) 
+
+lc_survey_benefits_tab <- lc_survey_benefits %>% count(benefits) %>% arrange(desc(n))
+n_benefits <- length(unique(lc_survey_benefits$number))
+
+lollipop_plot(lc_survey_benefits_tab, benefits, title = "Benefits from participation in workshop(s)", m = n_benefits, subtitle = "responses")
+
+# other benefits
+lc_survey %>% filter(!(other_61 %in% c(NA))) %>% select(other_61) %>% head()
+
+# continued learning
+# Q19 In which of the following learning activities have you engaged since completing a Carpentries workshop?
+# [61] "used_carpentry_self_guided_material"                                          
+# [62] "used_non_carpentry_self_guided_material"                                      
+# [63] "contributed_as_an_instructor_helper_to_a_carpentry_workshop"                  
+# [64] "participated_in_a_short_course_or_workshop_up_to_4_days"                      
+# [65] "participated_in_a_semester_long_course" 
+# [66] "other_67"
+
+lc_survey_learning <- lc_survey %>% pivot_longer(used_carpentry_self_guided_material:participated_in_a_semester_long_course, names_to = "learning_var", values_to = "learning") %>% filter(!is.na(learning)) 
+
+lc_survey_learning_tab <- lc_survey_learning %>% count(learning) %>% arrange(desc(n))
+n_learning <- length(unique(lc_survey_learning$number))
+
+lollipop_plot(lc_survey_learning_tab, learning, title = "Follow-up learning activities", m = n_benefits, subtitle = "responses")
+
+# other benefits 
+lc_survey %>% filter(!(other_67 %in% c(NA, "not attended"))) %>% select(other_67) %>% head()
+
+# personal engagement 
+# Q20 Have you further promoted or engaged with The Carpentries?
+# [67] "i_have_joined_the_carpentries_community_as_an_instructor" 
+# [68] "i_recommended_the_workshops_to_other_colleagues_and_friends"
+# [69] "i_have_promoted_membership_to_the_head_of_my_institution" 
+# [70] "i_have_organised_workshops_or_sessions"                                 
+# [71] "i_contributed_to_carpentries_workshops_as_a_helper"                       
+# [72] "other_73" 
+
+lc_survey_engprom <- lc_survey %>% pivot_longer(i_have_joined_the_carpentries_community_as_an_instructor:i_contributed_to_carpentries_workshops_as_a_helper, names_to = "engprom_var", values_to = "engprom") %>% filter(!is.na(engprom)) 
+
+lc_survey_engprom_tab <- lc_survey_engprom %>% count(engprom) %>% arrange(desc(n))
+n_engprom <- length(unique(lc_survey_engprom$number))
+
+lollipop_plot(lc_survey_engprom_tab, engprom, title = "Further promotion or engagement", m = n_engprom, subtitle = "responses")
+
+# other responses
+lc_survey %>% filter(!(other_73 %in% c(NA))) %>% select(other_73) %>% head()
+
+
+```
+
+
+
+# Suggestions and final comments
+Respondents shared their ideas on what other topics the Library Carpentry curriculum could include and how Library Carpentry could support them in their work. At the end of the survey, a few respondents shared a couple of final comments. 
+```{r suggestions}
+
+# Q21 What other topics should the Library Carpentry curriculum include?
+lc_survey %>% filter(!(what_other_topics_should_the_library_carpentry_curriculum_include %in% c(NA, "unsure", "None", "no idea", "na", "don't know", "I don't know enough about the Carpentries yet.", "Don't know what else is involved", "I have not thought of any yet"))) %>% select(what_other_topics_should_the_library_carpentry_curriculum_include) %>% head(n=50)
+
+# Q22 Do you have any other suggestions on how Library Carpentry could support you in your work?
+lc_survey %>% filter(!(do_you_have_any_other_suggestions_on_how_library_carpentry_could_support_you_in_your_work %in% c(NA, "no", "unsure", "None", "na", "Not yet"))) %>% select(do_you_have_any_other_suggestions_on_how_library_carpentry_could_support_you_in_your_work) %>% head(n=50)
+
+# Q28 Is there anything else you would like to share?
+lc_survey %>% filter(!(is_there_anything_else_you_would_like_to_share %in% c(NA, "No", "no", "None", "Not really"))) %>% select(is_there_anything_else_you_would_like_to_share) %>% head(n = 20)
+
+
+```
+
+# Quotes
+Several respondents shared information on how they personally benefitted from their workshop participation or further engagement with The Carpentries. A few were confused by the question. 
+```{r quotes}
+# Q23 We would like to quote you. Please share a short statement on how you personally benefitted from your workshop participation or further engagement with The Carpentries.
+lc_survey %>% filter(!(we_would_like_to_quote_you_please_share_a_short_statement_on_how_you_personally_benefitted_from_your_workshop_participation_or_further_engagement_with_the_carpentries %in% c(NA, "...", "Not applicable", "nothing so far", "unsure", "None", "na", "not applicable"))) %>% select(we_would_like_to_quote_you_please_share_a_short_statement_on_how_you_personally_benefitted_from_your_workshop_participation_or_further_engagement_with_the_carpentries) %>% head(n=33)
+``` 
+
+
+# Demographics of respondents' institutions
+```{r demographics}
+# Q24 How would you classify your institution/organisation?
+lc_survey %>% filter(!is.na(how_would_you_classify_your_institution_organisation)) %>% count(how_would_you_classify_your_institution_organisation) %>% arrange(desc(n))
+
+# Q25 What is the size of your overall institution in terms of staff (academic and administrative)?
+lc_survey %>% filter(!is.na(size_of_the_library_in_terms_of_fte_staff)) %>% count(size_of_the_library_in_terms_of_fte_staff) %>% arrange(desc(n))
+#lc_survey %>% filter(!is.na(what_is_the_size_of_the_library_in_terms_of_fte_staff)) %>% count(what_is_the_size_of_the_library_in_terms_of_fte_staff) %>% arrange(desc(n))
+
+# Q26 What is the size of your overall institution in terms of full-time equivalent (FTE) enrolled students?
+lc_survey %>% filter(!is.na(size_of_your_overall_institution_in_terms_of_fte_enrolled_students)) %>% count(size_of_your_overall_institution_in_terms_of_fte_enrolled_students) %>% arrange(desc(n))
+
+# Q27 What is the size of the library in terms of FTE staff?
+lc_survey %>% filter(!is.na(size_of_the_library_in_terms_of_fte_staff)) %>% count(size_of_the_library_in_terms_of_fte_staff) %>% arrange(desc(n))
+
+```
+
