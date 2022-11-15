@@ -8,7 +8,6 @@ always_allow_html: true
 date: "`r format(Sys.time(), '%d %B %Y')`"
 author: Birgit Schmidt
 output:
-  # word_document
   html_document:
     code_download: true # adds download button
     df_print: paged
@@ -36,6 +35,7 @@ library(lubridate) # transform dates
 library(UpSetR) # create upset diagrams
 library(xtable)
 library(likert) # evaluate Likert type questions
+library(grid)
 
 lc_survey_raw <- read_csv("data_raw/lc-cac-survey-responses.csv")
 lc_survey_raw <- lc_survey_raw %>% clean_names()
@@ -103,7 +103,7 @@ lollipop_plot(lc_survey_eng_tab, engagement, title = "Library engagement with th
 
 lc_survey$other_10[!is.na(lc_survey$other_10)]
  
-n_not_yet_learn <- length(lc_survey$we_are_not_involved_yet_but_would_like_to_learn_more)
+n_not_yet_learn <- sum(!is.na(lc_survey$we_are_not_involved_yet_but_would_like_to_learn_more))
 
 ```
 
@@ -122,11 +122,14 @@ lollipop_plot(lc_survey_job_roles_tab, job_roles, title = "Job roles", m = n_job
 
 ```
 
+`r n_job_roles` respondents shared information on their job roles. `
+
+
 ```{r workshop attendance and content} 
 # Former workshop attendance
 lc_survey_workshop_att <- lc_survey %>% pivot_longer(library_carpentry:other_27, names_to = "workshop_attendance_var", values_to = "workshop_attendance") %>% filter(!is.na(workshop_attendance)) 
 
-lc_survey_workshop_att_tab <- lc_survey_workshop_att %>% count(workshop_attendance) %>% arrange(desc(n))
+lc_survey_workshop_att_tab <- lc_survey_workshop_att %>% count(workshop_attendance) %>% arrange(desc(n)) 
 lc_survey_workshop_att_tab
 sub_any_workshop <- lc_survey_workshop_att %>% filter(workshop_attendance %in% c("Library Carpentry", "Software Carpentry", "Data Carpentry"))
 n_workshop_att <- length(unique(sub_any_workshop$number))
@@ -136,19 +139,26 @@ x_att <- lc_survey %>% select(number, library_carpentry:no_but_i_plan_to_do_so) 
 # turn into incidence matrix, fill zeros for NAs
 x_att_inc <- x_att %>% mutate(across(library_carpentry:no_but_i_plan_to_do_so,  ~ifelse(is.na(.), as.integer(0), as.integer(1)))) %>% select(library_carpentry:no_but_i_plan_to_do_so)
 
-metadata <- data.frame(sets = names(x_att_inc[1:4]), variable = c("grp1", "grp2", "grp3", "grp4"))
+metadata_1 <- data.frame(sets = names(x_att_inc[1:4]), variable = c("grp1", "grp2", "grp3", "grp4"))
   
 #upset(as_data_frame(x_att_inc), sets = c("library_carpentry", "data_carpentry", "software_carpentry", "no_but_i_plan_to_do_so"), mb.ratio = c(0.55, 0.45), order.by = "freq")
 #upset(as_data_frame(x_att_inc), set.metadata = list(data = metadata, plots = list(list(type = "matrix_rows", column = "variable"))), order.by = "freq")
 
 df <- data.frame("Library Carpentry" = x_att_inc$library_carpentry, "Data Carpentry" = x_att_inc$data_carpentry, "Software Carpentry" = x_att_inc$software_carpentry, "No but plan to do so" = x_att_inc$no_but_i_plan_to_do_so)
 metadata <- data.frame(sets = names(df), variable = c("grp1", "grp1", "grp1", "grp2"))
+metadata_2 <- data.frame(sets = names(df[ , 1:3]), variable = c("grp1", "grp1", "grp1"))
 
+# intersection diagram (based on upsetr)
 upset(df, set.metadata = list(data = metadata, plots = list(list(type = "matrix_rows", column = "variable"))), order.by = "freq")
+
+# intersection diagram of those who attended a workshop
+upset_1 <- upset(df[ , 1:3], set.metadata = list(data = metadata_2, plots = list(list(type = "matrix_rows", column = "variable"))), order.by = "freq") 
+print(upset_1) + ggtitle("My_Title")
+
 
 # Q5 When did you last attend a Carpentries Workshop?
 # [27] "last_workshop_attended" 
-lc_survey %>% filter(!(last_workshop_attended %in% c(NA, "Have not attended a Carpentries Workshop"))) %>% count(last_workshop_attended) %>% arrange(desc(n))
+lc_survey %>% filter(!(last_workshop_attended %in% c(NA, "Have not attended a Carpentries Workshop"))) %>% count(last_workshop_attended) %>% arrange(desc(n)) 
 
 # Q6 What content was covered? (select all that apply)
 # [28] "git"                                                                          
@@ -171,9 +181,11 @@ n_workshop_content <- length(unique(lc_survey_workshop_content$number))
 
 lollipop_plot(lc_survey_workshop_content_tab, workshop_content, title = "Workshop content", m = n_workshop_content, subtitle = "responses")
 
+lc_survey_job_roles_tab %>% mutate(perc = round(n/n_job_roles * 100,1))
+
 ```
 
-Of all respondents, `r n_workshop_att` had attended at least one Carpentries workhop. Out of these about every second (45 respondents) had attended at least two types of Carpentries workshops. A good third (31 respondents) had participated in Library Carpentry workshops only so far.  
+Of all respondents, `r n_workshop_att` had attended at least one Carpentries workhop.  Most popular was Library Carpentry (73 respondents), followed by Software Carpentry (42 respondents) and Data Carpentry (38 respondents). Out of these about every second (45 respondents) had attended at least two types of Carpentry workshops. 
 
 # Application and engagement
 
