@@ -69,7 +69,7 @@ tab_respondent_role <- lc_survey %>% count(respondent_role)
 
 ```
 # Survey results
-The Library Carpentry Advisory Group (LCAG, https://librarycarpentry.org/advisory/) conducted a survey with the aim to gain a better understanding of librarians and other information professionals in terms of their training needs, impacts resulting from training and further engagement with The Carpentries community. The survey has been developed by Konrad Förstner and Birgit Schmidt.
+The Library Carpentry Advisory Group (LCAG, https://librarycarpentry.org/advisory/) conducted a survey with the aim to gain a better understanding of librarians and other information professionals in terms of their training needs, impacts resulting from training and further engagement with The Carpentries community. The survey has been developed by Birgit Schmidt and Konrad Förstner.
 
 The survey was disseminated through various channels, including The Carpentries mailing lists and social media channels, regional mailing lists (e.g. Australia, Asia, Africa), and direct contacts to former workshop participants and instructors (via host institutions). 
 
@@ -153,7 +153,7 @@ upset(df, set.metadata = list(data = metadata, plots = list(list(type = "matrix_
 
 # intersection diagram of those who attended a workshop
 upset_1 <- upset(df[ , 1:3], set.metadata = list(data = metadata_2, plots = list(list(type = "matrix_rows", column = "variable"))), order.by = "freq") 
-print(upset_1) + ggtitle("My_Title")
+print(upset_1) #+ ggtitle("My_Title")
 
 
 # Q5 When did you last attend a Carpentries Workshop?
@@ -240,8 +240,10 @@ routines_all_NA <- lc_survey_routines %>% filter_at(vars(reorganising_and_cleani
 
 lc_survey_routines <- lc_survey_routines %>% filter(!(number %in% routines_all_NA$number))
 
+lc_survey_routines_renamed <- rename(lc_survey_routines, c("Reorganising and cleaning spreadsheets" = "reorganising_and_cleaning_spreadsheets" , "Using version control" = "using_version_control",  "Transforming workflows into scripts" ="transforming_workflows_into_scripts",    "Scraping or mining web content" =    "scraping_or_mining_web_content",   "Improving data management and project organisation" = "improving_data_management_and_project_organisation", "Using programming languages" = "using_programming_languages_r_python", "Reusing code" = "reusing_code",  "Creating processable reports" = "creating_processable_reports_e_g_r_markdown_jupyter_notebook"))
+
 # error: all items/columns must have the same number of levels
-routines <- likert(as.data.frame(lc_survey_routines[2:9]))
+routines <- likert(as.data.frame(lc_survey_routines_renamed[2:9]))
 routines 
 summary(routines)
 plot(routines)
