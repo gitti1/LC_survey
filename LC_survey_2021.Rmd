@@ -240,7 +240,7 @@ routines_all_NA <- lc_survey_routines %>% filter_at(vars(reorganising_and_cleani
 
 lc_survey_routines <- lc_survey_routines %>% filter(!(number %in% routines_all_NA$number))
 
-lc_survey_routines_renamed <- rename(lc_survey_routines, c("Reorganising and cleaning spreadsheets" = "reorganising_and_cleaning_spreadsheets" , "Using version control" = "using_version_control",  "Transforming workflows into scripts" ="transforming_workflows_into_scripts",    "Scraping or mining web content" =    "scraping_or_mining_web_content",   "Improving data management and project organisation" = "improving_data_management_and_project_organisation", "Using programming languages" = "using_programming_languages_r_python", "Reusing code" = "reusing_code",  "Creating processable reports" = "creating_processable_reports_e_g_r_markdown_jupyter_notebook"))
+lc_survey_routines_renamed <- rename(lc_survey_routines, c("Reorganising and cleaning spreadsheets" = "reorganising_and_cleaning_spreadsheets" , "Using version control" = "using_version_control", "Transforming workflows into scripts" ="transforming_workflows_into_scripts", "Scraping or mining web content" = "scraping_or_mining_web_content", "Improving data management and project organisation" = "improving_data_management_and_project_organisation", "Using programming languages" = "using_programming_languages_r_python", "Reusing code" = "reusing_code", "Creating processable reports" = "creating_processable_reports_e_g_r_markdown_jupyter_notebook"))
 
 # error: all items/columns must have the same number of levels
 routines <- likert(as.data.frame(lc_survey_routines_renamed[2:9]))
@@ -250,7 +250,11 @@ plot(routines)
 
 # Other adopted routines 
 # Q17 What other behaviours/routines have you adopted as a result of completing a Carpentries workshop?
-lc_survey %>% filter(!(what_other_behaviours_routines_have_you_adopted_as_a_result_of_completing_a_carpentries_workshop %in% c(NA, "I have never attended a workshop on carpentry", "NA - flaw in your survey i haven't attended any so these questions are irrelevant.", "not applicable", "None", "none", "Not applicable"))) %>% select(what_other_behaviours_routines_have_you_adopted_as_a_result_of_completing_a_carpentries_workshop) %>% head(n = 45)
+other_behaviours <- lc_survey %>% filter(!(what_other_behaviours_routines_have_you_adopted_as_a_result_of_completing_a_carpentries_workshop %in% c(NA, "I have never attended a workshop on carpentry", "NA - flaw in your survey i haven't attended any so these questions are irrelevant.", "not applicable", "None", "none", "Not applicable"))) %>% select(what_other_behaviours_routines_have_you_adopted_as_a_result_of_completing_a_carpentries_workshop) 
+
+other_behaviours
+
+write_csv(other_behaviours, "data/other_behaviours.csv")
 
 ```
 
@@ -323,14 +327,22 @@ Respondents shared their ideas on what other topics the Library Carpentry curric
 ```{r suggestions}
 
 # Q21 What other topics should the Library Carpentry curriculum include?
-lc_survey %>% filter(!(what_other_topics_should_the_library_carpentry_curriculum_include %in% c(NA, "unsure", "None", "no idea", "na", "don't know", "I don't know enough about the Carpentries yet.", "Don't know what else is involved", "I have not thought of any yet"))) %>% select(what_other_topics_should_the_library_carpentry_curriculum_include) %>% head(n=50)
+other_topics <- lc_survey %>% filter(!(what_other_topics_should_the_library_carpentry_curriculum_include %in% c(NA, "unsure", "None", "no idea", "na", "don't know", "I don't know enough about the Carpentries yet.", "Don't know what else is involved", "I have not thought of any yet"))) %>% select(what_other_topics_should_the_library_carpentry_curriculum_include)
+
+other_topics
+write_csv(other_topics, "data/other_topics.csv")
 
 # Q22 Do you have any other suggestions on how Library Carpentry could support you in your work?
-lc_survey %>% filter(!(do_you_have_any_other_suggestions_on_how_library_carpentry_could_support_you_in_your_work %in% c(NA, "no", "unsure", "None", "na", "Not yet"))) %>% select(do_you_have_any_other_suggestions_on_how_library_carpentry_could_support_you_in_your_work) %>% head(n=50)
+other_suggestions <- lc_survey %>% filter(!(do_you_have_any_other_suggestions_on_how_library_carpentry_could_support_you_in_your_work %in% c(NA, "no", "unsure", "None", "na", "Not yet"))) %>% select(do_you_have_any_other_suggestions_on_how_library_carpentry_could_support_you_in_your_work) 
+
+other_suggestions
+write_csv(other_suggestions, "data/other_suggestions.csv")
 
 # Q28 Is there anything else you would like to share?
-lc_survey %>% filter(!(is_there_anything_else_you_would_like_to_share %in% c(NA, "No", "no", "None", "Not really"))) %>% select(is_there_anything_else_you_would_like_to_share) %>% head(n = 20)
-
+other_sharing <- lc_survey %>% filter(!(is_there_anything_else_you_would_like_to_share %in% c(NA, "No", "no", "None", "Not really"))) %>% select(is_there_anything_else_you_would_like_to_share)
+ 
+other_sharing
+write_csv(other_sharing, "data/other_sharing.csv")
 
 ```
 
@@ -338,7 +350,10 @@ lc_survey %>% filter(!(is_there_anything_else_you_would_like_to_share %in% c(NA,
 Several respondents shared information on how they personally benefitted from their workshop participation or further engagement with The Carpentries. A few were confused by the question. 
 ```{r quotes}
 # Q23 We would like to quote you. Please share a short statement on how you personally benefitted from your workshop participation or further engagement with The Carpentries.
-lc_survey %>% filter(!(we_would_like_to_quote_you_please_share_a_short_statement_on_how_you_personally_benefitted_from_your_workshop_participation_or_further_engagement_with_the_carpentries %in% c(NA, "...", "Not applicable", "nothing so far", "unsure", "None", "na", "not applicable"))) %>% select(we_would_like_to_quote_you_please_share_a_short_statement_on_how_you_personally_benefitted_from_your_workshop_participation_or_further_engagement_with_the_carpentries) %>% head(n=33)
+quotes <- lc_survey %>% filter(!(we_would_like_to_quote_you_please_share_a_short_statement_on_how_you_personally_benefitted_from_your_workshop_participation_or_further_engagement_with_the_carpentries %in% c(NA, "...", "Not applicable", "nothing so far", "unsure", "None", "na", "not applicable"))) %>% select(we_would_like_to_quote_you_please_share_a_short_statement_on_how_you_personally_benefitted_from_your_workshop_participation_or_further_engagement_with_the_carpentries) 
+
+quotes
+write_csv(quotes, "data/quotes.csv")
 ``` 
 
 
