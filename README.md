@@ -5,3 +5,5 @@ The Library Carpentry Advisory Group (LCAG, https://librarycarpentry.org/advisor
 The survey was disseminated through various channels, including The Carpentries mailing lists and social media channels, regional mailing lists (e.g. Australia, Asia, Africa), and direct contacts to former workshop participants and instructors (via host institutions).
 
 The survey consisted of 28 questions overall, and was open for responses between 14 June 2021 and 25 August 2021. 
+
+For more information visit the summary page at: https://gitti1.github.io/LC_survey/
